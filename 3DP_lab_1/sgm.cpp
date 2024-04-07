@@ -192,27 +192,59 @@ namespace sgm
     // disparity_range_ (excluded, already defined). The output should be stored in the 
     // tensor (already allocated) path_cost_[cur_path][cur_y][cur_x][d], for all possible d.
     /////////////////////////////////////////////////////////////////////////////////////////
-
+//
     // if the processed pixel is the first:
     if(cur_y == pw_.north || cur_y == pw_.south || cur_x == pw_.east || cur_x == pw_.west)
     {
       //Please fill me!
+        for (int i = 0; i < disparity_range_; ++i) {
+            // set the initial cost for the first pixel in the path
+            path_cost_[cur_path][cur_y][cur_x][i] = cost_[cur_y][cur_x][i];;
+        }
     }
 
     else
     {
       //Please fill me!
+        for (int i = 0; i < disparity_range_; ++i) {
+            // get the previous cost of the path
+            prev_cost = path_cost_[cur_path][cur_y - direction_y][cur_x - direction_x][i];
+            best_prev_cost = prev_cost;
+            for (int j = 0; j < disparity_range_; ++j) {
+                if  (abs(i - j) == 1) {
+                    // apply small penalty for disparity == 1
+                    small_penalty_cost = prev_cost + p1_;
+                } else if (abs(i - j) > 1) {
+                    // apply big penalty for disparity > 1
+                    big_penalty_cost = prev_cost + p2_;
+                } else if (abs(i - j) == 0) {
+                    // apply no penalty for equal disparity
+                    penalty_cost = prev_cost;
+                }
+                // find the minimum cost among the penalty costs
+                if (small_penalty_cost < best_prev_cost) {
+                    best_prev_cost = small_penalty_cost;
+                }
+                if (big_penalty_cost < best_prev_cost) {
+                    best_prev_cost = big_penalty_cost;
+                }
+                if (penalty_cost < best_prev_cost) {
+                    best_prev_cost = penalty_cost;
+                }
+            }
+            // set the final cost for the current pixel in the path
+            path_cost_[cur_path][cur_y][cur_x][i] = cost_[cur_y][cur_x][i] + best_prev_cost;
+        }
     }
-    
-    
+
     /////////////////////////////////////////////////////////////////////////////////////////
   }
 
   
   void SGM::aggregation()
   {
-    
-    //for all defined paths
+
+      //for all defined paths
     for(int cur_path = 0; cur_path < PATHS_PER_SCAN; ++cur_path)
     {
 
@@ -220,19 +252,69 @@ namespace sgm
       // Initialize the variables start_x, start_y, end_x, end_y, step_x, step_y with the 
       // right values, after that uncomment the code below
       /////////////////////////////////////////////////////////////////////////////////////////
-
       int dir_x = paths_[cur_path].direction_x;
       int dir_y = paths_[cur_path].direction_y;
-      
+//       All possible combination
+//      std::cout << cter << ")" << std::endl;
+//      std::cout << "dir_x: " << dir_x << std::endl;
+//      std::cout << "dir_y: " << dir_y << std::endl;
+//      std::cout << "---------------" << std::endl;
       int start_x, start_y, end_x, end_y, step_x, step_y;
-      
-//      for(int y = start_y; y != end_y ; y+=step_y)
-//      {
-//        for(int x = start_x; x != end_x ; x+=step_x)
-//        {
-//          compute_path_cost(dir_y, dir_x, y, x, cur_path);
-//        }
-//      }
+        // set start, end, and step values for x and y
+        switch (dir_x)
+        {
+            case 1:
+                start_x = pw_.west;
+                end_x = pw_.east+1;
+                step_x = 1;
+                break;
+
+            case -1:
+                start_x = pw_.east;
+                end_x = pw_.west-1;
+                step_x = -1;
+                break;
+
+            //dir_x == 0
+            default:
+                start_x = pw_.west;
+                end_x = pw_.east+1;
+                step_x = 1;
+                break;
+        }
+
+        switch (dir_y)
+        {
+            case 1:
+                start_y = pw_.north;
+                end_y = pw_.south+1;
+                step_y = 1;
+                break;
+
+            case -1:
+                start_y = pw_.south;
+                end_y = pw_.north-1;
+                step_y = -1;
+                break;
+
+            //dir_y == 0
+            default:
+                start_y = pw_.north;
+                end_y = pw_.south+1;
+                step_y = 1;
+                break;
+        }
+
+
+
+      for(int y = start_y; y != end_y ; y+=step_y)
+      {
+        for(int x = start_x; x != end_x ; x+=step_x)
+        {
+          compute_path_cost(dir_y, dir_x, y, x, cur_path);
+        }
+      }
+
       
       /////////////////////////////////////////////////////////////////////////////////////////
     }
@@ -273,6 +355,8 @@ namespace sgm
       aggregation();
       disp_ = Mat(Size(width_, height_), CV_8UC1, Scalar::all(0));
       int n_valid = 0;
+      vector<pair<float, float>> disparity_pairs;
+
       for (int row = 0; row < height_; ++row)
       {
           for (int col = 0; col < width_; ++col)
@@ -285,7 +369,7 @@ namespace sgm
                   if(aggr_cost_[row][col][d]<smallest_cost)
                   {
                       smallest_cost = aggr_cost_[row][col][d];
-                      smallest_disparity = d; 
+                      smallest_disparity = d;
 
                   }
               }
@@ -295,40 +379,92 @@ namespace sgm
               if (inv_confidence_[row][col] > 0 && inv_confidence_[row][col] <conf_thresh_)
               {
                 //////////////////////////// Code to be completed (3/4) /////////////////////////////////
-                // Since the disparity at position (row, col) has a good confidence, it can be added 
-                // togheter with the corresponding unscaled disparity from the right-to-left initial 
-                // guess mono_.at<uchar>(row, col) to the pool of disparity pairs that will be used 
-                // to estimate the unknown scale factor.    
+                // Since the disparity at position (row, col) has a good confidence, it can be added
+                // togheter with the corresponding unscaled disparity from the right-to-left initial
+                // guess mono_.at<uchar>(row, col) to the pool of disparity pairs that will be used
+                // to estimate the unknown scale factor.
                 /////////////////////////////////////////////////////////////////////////////////////////
+                  float sgm_disparity = smallest_disparity * 255.0 / disparity_range_;
 
-                
-                
-                
-                
-                
-                
-                /////////////////////////////////////////////////////////////////////////////////////////
+                  // Get the unscaled initial guess disparity
+                  float mono_disparity = static_cast<float>(mono_.at<uchar>(row, col));
+
+                  // Add the disparity pair to the pool of disparity pairs
+                  disparity_pairs.push_back(make_pair(mono_disparity, sgm_disparity));
+                  n_valid++;
+
+
+
+
+                  /////////////////////////////////////////////////////////////////////////////////////////
               }
 
-              disp_.at<uchar>(row, col) = smallest_disparity*255.0/disparity_range_;
+              disp_.at<uchar>(row, col) = smallest_disparity * 255.0 / disparity_range_;
 
           }
       }
 
       //////////////////////////// Code to be completed (4/4) /////////////////////////////////
-      // Using all the disparity pairs accumulated in the previous step, 
-      // estimate the unknown scaling factor and scale the initial guess disparities 
-      // accordingly. Finally,  and use them to improve/replace the low-confidence SGM 
+      // Using all the disparity pairs accumulated in the previous step,
+      // estimate the unknown scaling factor and scale the initial guess disparities
+      // accordingly. Finally,  and use them to improve/replace the low-confidence SGM
       // disparities.
       /////////////////////////////////////////////////////////////////////////////////////////
+      MatrixXf A(disparity_pairs.size(), 2);
+      VectorXf b(disparity_pairs.size());
 
-      
-      
-      
-      
-      
-      
-      
+      // Fill matrices A and b with disparity pairs
+      for (size_t i = 0; i < disparity_pairs.size(); ++i) {
+          A(i, 0) = disparity_pairs[i].first; // d_mono
+          A(i, 1) = 1; // Constant term
+          b(i) = disparity_pairs[i].second; // d_sgm
+      }
+
+
+      // Solve the least squares problem to find coefficients h and k
+      Vector2f coefficients = (A.transpose() * A).inverse() * A.transpose() * b;
+
+      // Extract coefficients h and k
+      float h = coefficients.x();
+      float k = coefficients.y();
+
+
+      // Now, use h and k to improve/replace the low-confidence SGM disparities
+
+      for (int row = 0; row < height_; ++row)
+      {
+          for (int col = 0; col < width_; ++col)
+          {
+              unsigned long smallest_cost = aggr_cost_[row][col][0];
+              int smallest_disparity = 0;
+              for(int d=disparity_range_-1; d>=0; --d)
+              {
+
+                  if(aggr_cost_[row][col][d]<smallest_cost)
+                  {
+                      smallest_cost = aggr_cost_[row][col][d];
+                      smallest_disparity = d;
+
+                  }
+              }
+              inv_confidence_[row][col] = smallest_cost - inv_confidence_[row][col];
+
+              if (inv_confidence_[row][col] > 0 && inv_confidence_[row][col] >= conf_thresh_) {
+                  // Get the SGM estimated disparity
+
+                  // Scale the disparity using the estimated coefficients
+                  float scaled_disparity = h * static_cast<float>(mono_.at<uchar>(row, col)) + k;
+
+
+
+                  // Update disparity using the scaled disparity
+                  disp_.at<uchar>(row, col) = scaled_disparity;
+              }
+          }
+      }
+
+
+
       /////////////////////////////////////////////////////////////////////////////////////////
 
   }
