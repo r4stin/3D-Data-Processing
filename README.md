@@ -12,6 +12,7 @@ Lab_3:\
 Topic: Iterative Closest Point Cloud Registration.\
 Goal: Given a source and a target point cloud roughly aligned, find the fine alignment transformation of the source to the target cloud.
 
-Topic: Deep 3D descriptors\
+Lab_4:\
+Topic: Deep 3D descriptors.\
 Goal: Design a modified PointNet architecture that is able to extract 3D descriptors to be used for matching. Replace the initial 3x3 T-Net with a rotation matrix extracted as in the
 Local Reference Frame of SHOT descriptors.
